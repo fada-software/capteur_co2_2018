@@ -259,8 +259,8 @@ int convert_pressure_to_pixel(int pressure){
 //=============================================================================
 int convert_co2_to_pixel(int co2){
   //return int(-0.055 * co2 + 341); //conversion co2 400 à 5000 en pixel 319 à 66
-  if (co2 < 400 ) co2 = 400;
-  else if (co2 > 1500) co2 = 1500;
+  if (co2 < 400 ) co2 = 400 + TRACE_THICKNESS;
+  else if (co2 > 1500) co2 = 1500 - TRACE_THICKNESS;
   return int(-0.23 * co2 + 411); //conversion co2 400 à 1500 en pixel 319 à 66
 }
 //=============================================================================
