@@ -1,6 +1,6 @@
 //=============================================================================
 // Projet : capteur CO2
-// Date: 03/12/2025
+// Date: 18/12/2025
 // Author: fada-software
 //=============================================================================
 #include <Wire.h> //I2C
@@ -44,8 +44,8 @@ MCUFRIEND_kbv tft; //ecran LCD TFT 480x320
 #define GRID_COLOR GREY
 
 //=============================================================================
-//=============================================================================
 //Declaration des fonctions
+//=============================================================================
 void draw_display(void);
 void draw_grid(void);
 void update_display(void);
@@ -57,8 +57,8 @@ int readCO2UART(void);
 byte getCheckSum(char *packet);
 
 //=============================================================================
-//=============================================================================
 //Variales globales
+//=============================================================================
 const int Position_Y_pression=80, Position_Y_iaq=190, Position_Y_co2=300;
 int ppm_uart = 0;
 int i = 0;
@@ -68,6 +68,7 @@ int new_pixel_pressure = 0;
 int new_pixel_co2 = 0;
 
 //=============================================================================
+// initialisation
 //=============================================================================
 void setup() {
   Serial.begin(115200);
@@ -91,21 +92,22 @@ void setup() {
   uint16_t ID = tft.readID();
   if (ID == 0xD3) ID = 0x9481; //correction identifiant controlleur graphique, le module renvoie 0xD3 ? alors que c'est un ILI9486, fonctionne avec ID=0x9481
   tft.begin(ID);
-  tft.setRotation(3); //0,1,2,3 (3 = paysage avec USB à droite / 1 à gauche)
+  tft.setRotation(3); //orientation 0,1,2,3 (3 = format paysage avec USB à droite / 1 à gauche)
   draw_display();
   draw_grid();
 
-  ppm_uart = readCO2UART(); //1iere lecture capteur CO2 par UART, toujours erronée, renvoie -2, fait ici pour éviter le premier affichage avec le valeur -2 pendant 5 minutes
+  ppm_uart = readCO2UART(); //1iere lecture capteur CO2 par UART, toujours erronée, renvoie -2, fait ici pour éviter le premier affichage avec le valeur -2 pendant 3 minutes
 
   //init tableaux
   for (i = 0 ; i < MAX_TFT_WIDTH ; i++)
   {
-    tab_pres[i]=-TRACE_THICKNESS;//-1 permet de ne pas afficher de courbe
-    tab_co2[i]=-TRACE_THICKNESS;////-1 permet de ne pas afficher de courbe
+    tab_pres[i] = -TRACE_THICKNESS;//-1 permet de ne pas afficher de courbe
+    tab_co2[i]  = -TRACE_THICKNESS;//-1 permet de ne pas afficher de courbe
   }
 }
 
 //=============================================================================
+// boucle principale
 //=============================================================================
 void loop() {
   // Tell BME680 to begin measurement.
@@ -150,9 +152,9 @@ void loop() {
 }
 
 //=============================================================================
-//=============================================================================
 //affichage initial de l'ecran LCD, fait une seule fois dans setup(),
 //ensuite on met a jour uniqument les valeurs et les fleches avec update_display()
+//=============================================================================
 void draw_display(void) {
   tft.fillScreen(BLACK);
   tft.setCursor(0, 0);
@@ -166,13 +168,14 @@ void draw_display(void) {
   tft.setTextColor(PRESSURE_COLOR);
   tft.print("    Pression : 8888 hPa          ");
   tft.setTextColor(CO2_COLOR);
-  tft.println("CO2 (0~5000) : 8888 ppm");
+  tft.println("CO2 (0~1500) : 8888 ppm");
 
   tft.fillRect(0, GRAPH_TOP_TFT_HEIGHT, MAX_TFT_WIDTH-1, 1, GRID_COLOR); // trait blanc haut
   tft.fillRect(0, GRAPH_TOP_TFT_HEIGHT, 1, MAX_TFT_HEIGHT-GRAPH_TOP_TFT_HEIGHT, GRID_COLOR); // trait blanc gauche
   tft.fillRect(MAX_TFT_WIDTH-1, GRAPH_TOP_TFT_HEIGHT, 1, MAX_TFT_HEIGHT-GRAPH_TOP_TFT_HEIGHT, GRID_COLOR); // trait blanc droit
 }
 //=============================================================================
+// affichage de la grille
 //=============================================================================
 void draw_grid(void) {
   tft.fillRect(0, MAX_TFT_HEIGHT-1, MAX_TFT_WIDTH-1, 1, GRID_COLOR); // trait blanc bas
@@ -185,14 +188,14 @@ void draw_grid(void) {
   tft.fillRect(MAX_TFT_WIDTH*3/4, GRAPH_TOP_TFT_HEIGHT, 1, MAX_TFT_HEIGHT-GRAPH_TOP_TFT_HEIGHT, GRID_COLOR);
 }
 //=============================================================================
+// mise à jour des valeurs et des courbes
 //=============================================================================
 void update_display(void) {
-  //effacement aciennes valeurs en dessinant un rectangle noir, puis re-ecriture nouvelles valeurs au meme endroit
-   
+  //effacement aciennes valeurs en dessinant un rectangle noir, puis affichage nouvelles valeurs au meme endroit
   tft.fillRect(138, 15, 36, 15, BLACK); // coordonnées X,Y, rectangle de 36x15px
   tft.setTextColor(WHITE);
   tft.setCursor(138, 28);
-  tft.print(bme.temperature-3, 1); //-3°C pour afficher la température réelle, le capteur C02 chauffe juste à côté
+  tft.print(bme.temperature-3, 1); //compensation -3°C pour afficher la température réelle, le capteur C02 chauffe juste à côté
   
   tft.fillRect(380, 15, 22, 15, BLACK); // coordonnées X,Y, rectangle de 22x15px
   tft.setCursor(380, 28);
@@ -209,6 +212,7 @@ void update_display(void) {
   else tft.setCursor(360, 50); //sinon 4 chiffres
   tft.print(ppm_uart);
 
+  //carré de couleur vert/orange/rouge selon taux de CO2
   if (ppm_uart < 700 ) tft.fillRect(450, 35 , 20, 20, GREEN);
   else if (ppm_uart < 1000) tft.fillRect(450, 35 , 20, 20, ORANGE);
   else tft.fillRect(450, 35 , 20, 20, RED);
@@ -246,24 +250,24 @@ void update_display(void) {
 		else //courbe qui descend
 			tft.fillRect(i, tab_co2[i] + TRACE_THICKNESS, 1, tab_co2[i-1] - tab_co2[i] - TRACE_THICKNESS, CO2_COLOR); //trait vertical en cas de saut important, seulement si donnée valide > 0 (init valeur négative)
   }
-  draw_grid();
+  draw_grid(); //affichage de la grille par dessus les courbes à chaque nouveau point, pour ne pas effacer la grille avec le décalage de 1 pixel vers la gauche
 }
 //=============================================================================
-//conversion pression 960 à 1060 en pixel 319 à 66 (voir fichier tableur.ods pour calcul y=a.x+b)
+//conversion pression 960 à 1060 en pixel 319-TRACE_THICKNESS à 66 (voir fichier tableur.ods pour calcul y=a.x+b)
 //=============================================================================
 int convert_pressure_to_pixel(int pressure){
-  return int(-2.53 * pressure + 2748.8);
+  return int(-2.48 * pressure + 2694.8);
 }
 //=============================================================================
-//conversion co2 400 à 1500 en pixel 319 à 66 (voir fichier tableur.ods pour calcul y=a.x+b)
+//conversion co2 400 à 1500 en pixel 319-TRACE_THICKNESS à 66 (voir fichier tableur.ods pour calcul y=a.x+b)
 //=============================================================================
 int convert_co2_to_pixel(int co2){
-  //return int(-0.055 * co2 + 341); //conversion co2 400 à 5000 en pixel 319 à 66
-  if (co2 < 400 ) co2 = 400 + TRACE_THICKNESS;
-  else if (co2 > 1500) co2 = 1500 - TRACE_THICKNESS;
-  return int(-0.23 * co2 + 411); //conversion co2 400 à 1500 en pixel 319 à 66
+  if (co2 < 400 ) co2 = 400;
+  else if (co2 > 1500) co2 = 1500;
+  return int(-0.2255 * co2 + 404.2);
 }
 //=============================================================================
+// rotation des tableaux de valeurs de CO2 et pression
 //=============================================================================
 void update_table(int new_pres_value, int new_co2_value){
   for (i = 1 ; i < MAX_TFT_WIDTH-2 ; i++)
@@ -274,7 +278,9 @@ void update_table(int new_pres_value, int new_co2_value){
   tab_pres[MAX_TFT_WIDTH-2]=new_pres_value;
   tab_co2[MAX_TFT_WIDTH-2]=new_co2_value;
 }
-
+//=============================================================================
+// affichage valeurs pour debug
+//=============================================================================
 void display_tables_for_debug(void){
   for (i = 1 ; i < MAX_TFT_WIDTH-2 ; i++)
   {
@@ -289,6 +295,7 @@ void display_tables_for_debug(void){
   }
 }
 //=============================================================================
+// lecture valeur CO2 par UART, capteur MH-Z19B
 //=============================================================================
 int readCO2UART(void){
   byte cmd[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79};
@@ -367,6 +374,7 @@ int readCO2UART(void){
   }
 }
 //=============================================================================
+// calcul checksum trame UART, capteur MH-Z19B
 //=============================================================================
 byte getCheckSum(byte *packet)
 {
