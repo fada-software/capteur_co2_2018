@@ -1,16 +1,26 @@
 //=============================================================================
 // Projet : capteur CO2
-// Date: 18/12/2025
+// Date: 08/01/2026
 // Author: fada-software
 //=============================================================================
-#include <Wire.h> //I2C
-#include <Adafruit_Sensor.h>
-#include "Adafruit_BME680.h"
-#include <SoftwareSerial.h>  // pour port serie "logiciel" vers capteur CO2 MHZ19B
-#include <MCUFRIEND_kbv.h>   // V3.0.0, écran LCD
-#include <Fonts/FreeSans9pt7b.h>
-#include <Fonts/FreeSans12pt7b.h>
-#include <FreeDefaultFonts.h>
+//librairies à installer avec arduino (menu sketch / include library / manage library)
+#include <Adafruit_Sensor.h>      // V1.1.15 "adafruit unified sensor"
+#include <Adafruit_BME680.h>      // V2.0.5, capteur environnement Bosch BME680
+#include <MCUFRIEND_kbv.h>        // V3.0.0, librairie pour écran LCD
+//librairies déjà installées avec arduino
+#include <Wire.h>                 //I2C
+#include <SoftwareSerial.h>       // pour port serie "logiciel" vers capteur CO2 MHZ19B
+#include <Fonts/FreeSans9pt7b.h>  // inclu avec MCUFRIEND_kbv.h
+#include <Fonts/FreeSans12pt7b.h> // inclu avec MCUFRIEND_kbv.h
+#include <FreeDefaultFonts.h>     // inclu avec MCUFRIEND_kbv.h
+
+
+//########## version 1 Fab ###############
+#define ORIENTATION_TFT 3 //orientation 0,1,2,3 (3 = format paysage avec USB à droite / 1 à gauche)
+#define OFFSET_TEMPERATURE -3 //-3°C pour afficher la température réelle, le capteur C02 chauffe juste à côté
+//########## version 2 Mam, Aur ##########
+//#define ORIENTATION_TFT 1
+//#define OFFSET_TEMPERATURE -1
 
 //#define CO2_DEBUG
 //#define SEALEVELPRESSURE_HPA (1013.25)
@@ -92,7 +102,7 @@ void setup() {
   uint16_t ID = tft.readID();
   if (ID == 0xD3) ID = 0x9481; //correction identifiant controlleur graphique, le module renvoie 0xD3 ? alors que c'est un ILI9486, fonctionne avec ID=0x9481
   tft.begin(ID);
-  tft.setRotation(3); //orientation 0,1,2,3 (3 = format paysage avec USB à droite / 1 à gauche)
+  tft.setRotation(ORIENTATION_TFT);
   draw_display();
   draw_grid();
 
@@ -123,7 +133,7 @@ void loop() {
   }
 
   Serial.print(F("Temperature = "));
-  Serial.print(bme.temperature-3); //-3°C pour afficher la température réelle, le capteur C02 chauffe juste à côté
+  Serial.print(bme.temperature + OFFSET_TEMPERATURE);
   Serial.println(F(" *C"));
 
   Serial.print(F("Pressure = "));
@@ -170,14 +180,14 @@ void draw_display(void) {
   tft.setTextColor(CO2_COLOR);
   tft.println("CO2 (0~1500) : 8888 ppm");
 
-  tft.fillRect(0, GRAPH_TOP_TFT_HEIGHT, MAX_TFT_WIDTH-1, 1, GRID_COLOR); // trait blanc haut
   tft.fillRect(0, GRAPH_TOP_TFT_HEIGHT, 1, MAX_TFT_HEIGHT-GRAPH_TOP_TFT_HEIGHT, GRID_COLOR); // trait blanc gauche
   tft.fillRect(MAX_TFT_WIDTH-1, GRAPH_TOP_TFT_HEIGHT, 1, MAX_TFT_HEIGHT-GRAPH_TOP_TFT_HEIGHT, GRID_COLOR); // trait blanc droit
 }
 //=============================================================================
-// affichage de la grille
+// affichage de la grille + traits haut et bas qu ipeuvent etre effacés par la courbe
 //=============================================================================
 void draw_grid(void) {
+  tft.fillRect(0, GRAPH_TOP_TFT_HEIGHT, MAX_TFT_WIDTH-1, 1, GRID_COLOR); // trait blanc haut
   tft.fillRect(0, MAX_TFT_HEIGHT-1, MAX_TFT_WIDTH-1, 1, GRID_COLOR); // trait blanc bas
   tft.fillRect(0, convert_pressure_to_pixel(980), MAX_TFT_WIDTH, 1, GRID_COLOR);
   tft.fillRect(0, convert_pressure_to_pixel(1000), MAX_TFT_WIDTH, 1, GRID_COLOR);

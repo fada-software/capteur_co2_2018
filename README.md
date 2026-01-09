@@ -9,4 +9,9 @@ affichage des courbes de mesure sur 24h
 - Capteur environnemental, COV Bosch Sensortec BME680
 - Capteur de CO2 Winsen MH-Z19B, 0-5000ppm
 
+# librairies à installer dans l'IDE Arduino
+- Adafruit unified sensor
+- Adafruit BME680
+- MCUFRIEND_kbv.h
+
 Utilisation mémoire : 14% Flash / 36% RAM
