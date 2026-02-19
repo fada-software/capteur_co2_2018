@@ -1,6 +1,6 @@
 //=============================================================================
 // Projet : capteur CO2
-// Date: 08/01/2026
+// Date: 18/02/2026
 // Author: fada-software
 //=============================================================================
 //librairies à installer avec arduino (menu sketch / include library / manage library)
@@ -14,18 +14,17 @@
 #include <Fonts/FreeSans12pt7b.h> // inclu avec MCUFRIEND_kbv.h
 #include <FreeDefaultFonts.h>     // inclu avec MCUFRIEND_kbv.h
 
-
 //########## version 1 Fab ###############
+#define OFFSET_TEMPERATURE -3 //offset pour afficher la température réelle
 #define ORIENTATION_TFT 3 //orientation 0,1,2,3 (3 = format paysage avec USB à droite / 1 à gauche)
-#define OFFSET_TEMPERATURE -3 //-3°C pour afficher la température réelle, le capteur C02 chauffe juste à côté
 //########## version 2 Mam, Aur ##########
+//#define OFFSET_TEMPERATURE -2.5
 //#define ORIENTATION_TFT 1
-//#define OFFSET_TEMPERATURE -1
 
 //#define CO2_DEBUG
 //#define SEALEVELPRESSURE_HPA (1013.25)
 
-Adafruit_BME680 bme; // capteur BME680, interface I2C
+Adafruit_BME680 bme; // capteur BME680, interface I2C, adresse I2C par defaut 0x77
 SoftwareSerial co2Serial(A15, 47); // define RX TX to MH-Z19B
 MCUFRIEND_kbv tft; //ecran LCD TFT 480x320
 #define MAX_TFT_WIDTH 480
@@ -83,14 +82,7 @@ int new_pixel_co2 = 0;
 void setup() {
   Serial.begin(115200);
   while (!Serial);
-  Serial.println(F("BME680 async test"));
-
   co2Serial.begin(9600); //port serie vers capteur CO2 MHZ19B
-
-  if (!bme.begin()) {
-    Serial.println(F("Could not find a valid BME680 sensor, check wiring!"));
-    while (1);
-  }
 
   // Set up oversampling and filter initialization
   bme.setTemperatureOversampling(BME680_OS_8X);
@@ -105,6 +97,15 @@ void setup() {
   tft.setRotation(ORIENTATION_TFT);
   draw_display();
   draw_grid();
+
+  Serial.println(F("BME680 I2C comm. test"));
+  if (!bme.begin()) {
+    Serial.println(F("Could not find a valid BME680 sensor, check wiring!"));
+    tft.setTextColor(RED);
+    tft.setCursor(50, 100);
+    tft.println("Could not find a valid BME680 sensor");
+    while (1);
+  }
 
   ppm_uart = readCO2UART(); //1iere lecture capteur CO2 par UART, toujours erronée, renvoie -2, fait ici pour éviter le premier affichage avec le valeur -2 pendant 3 minutes
 
@@ -123,13 +124,21 @@ void loop() {
   // Tell BME680 to begin measurement.
   unsigned long endTime = bme.beginReading();
   if (endTime == 0) {
-    Serial.println(F("Failed to begin reading :("));
-    return;
+    Serial.println(F("Failed to begin reading"));
+    tft.setTextColor(RED);
+    tft.setCursor(50, 150);
+    //tft.println("Failed to begin reading :(");
+    tft.println("B");
+    return; //return dans loop() recommence loop() depuis le début
   }
   delay(100); // wait during measure
   if (!bme.endReading()) {
     Serial.println(F("Failed to complete reading :("));
-    return;
+    tft.setTextColor(RED);
+    tft.setCursor(50, 200);
+    //tft.println("Failed to complete reading");
+    tft.println("C");
+    return; //return dans loop() recommence loop() depuis le début
   }
 
   Serial.print(F("Temperature = "));
@@ -153,6 +162,9 @@ void loop() {
   // Serial.println(F(" m"));
   
   ppm_uart = readCO2UART(); //lecture capteur CO2 par UART
+  Serial.print(F("CO2 = "));
+  Serial.print(ppm_uart);
+  Serial.println(F(" ppm"));  
   
   update_display(); //mise à jour affichage LCD TFT
 
@@ -205,7 +217,7 @@ void update_display(void) {
   tft.fillRect(138, 15, 36, 15, BLACK); // coordonnées X,Y, rectangle de 36x15px
   tft.setTextColor(WHITE);
   tft.setCursor(138, 28);
-  tft.print(bme.temperature-3, 1); //compensation -3°C pour afficher la température réelle, le capteur C02 chauffe juste à côté
+  tft.print(bme.temperature + OFFSET_TEMPERATURE, 1); //compensation pour afficher la température réelle, le capteur C02 chauffe juste à côté
   
   tft.fillRect(380, 15, 22, 15, BLACK); // coordonnées X,Y, rectangle de 22x15px
   tft.setCursor(380, 28);
